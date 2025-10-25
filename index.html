@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Conference</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Верхняя панель -->
+        <div class="header">
+            <div class="header-left">
+                <h1>🎥 Video Conference</h1>
+                <div id="connectionStatus" class="status-badge disconnected">Не подключено</div>
+                <div id="roomStatus" class="status-badge disconnected">Не в комнате</div>
+                <div id="roomIdDisplay" class="room-id-display" style="display: none;"></div>
+            </div>
+            <div class="header-right">
+                <button onclick="conference.toggleChat()" class="chat-toggle-btn">💬</button>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="content-wrapper">
+            <!-- Левая панель - управление -->
+            <div class="control-panel" id="controlPanel">
+                <div class="connection-section">
+                    <input type="text" id="userId" placeholder="Ваше имя">
+                    <button onclick="conference.connect()" class="btn primary">Подключиться</button>
+                    <button onclick="conference.disconnect()" id="disconnectBtn" class="btn secondary" disabled>Отключиться</button>
+                </div>
+
+                <div class="room-section" id="roomSection" style="display: none;">
+                    <div class="room-actions">
+                        <input type="text" id="roomId" placeholder="ID комнаты">
+                        <button onclick="conference.createRoom()" class="btn primary">Создать комнату</button>
+                        <button onclick="conference.joinRoom()" class="btn secondary">Присоединиться</button>
+                    </div>
+
+                    <div class="existing-rooms" id="existingRooms">
+                        <h4>Существующие комнаты:</h4>
+                        <div id="roomsList" class="rooms-list"></div>
+                    </div>
+                </div>
+
+                <div class="media-controls" id="mediaSection" style="display: none;">
+                    <button onclick="conference.toggleVideo()" id="videoBtn" class="btn media-btn active">📹</button>
+                    <button onclick="conference.toggleAudio()" id="audioBtn" class="btn media-btn active">🎤</button>
+                    <button onclick="conference.toggleScreenShare()" id="screenBtn" class="btn media-btn">🖥️</button>
+                    <button onclick="conference.leaveRoom()" class="btn danger">🚪</button>
+                </div>
+            </div>
+
+            <!-- Центральная область - видео -->
+            <div class="video-area">
+                <div class="participants-grid" id="participantsGrid">
+                    <!-- Участники будут добавляться сюда -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Боковая панель чата -->
+        <div class="chat-sidebar" id="chatSidebar">
+            <div class="chat-header">
+                <h3>Чат</h3>
+                <button onclick="conference.toggleChat()" class="close-btn">×</button>
+            </div>
+            <div class="chat-content">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatMessage" placeholder="Сообщение...">
+                    <button onclick="conference.sendChatMessage()" class="send-btn">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const conference = new VideoConference();
+        window.conference = conference;
+
+        // Обработка Enter в полях ввода
+        document.addEventListener('DOMContentLoaded', function() {
+            const userIdInput = document.getElementById('userId');
+            if (userIdInput) {
+                userIdInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        conference.connect();
+                    }
+                });
+            }
+
+            const roomIdInput = document.getElementById('roomId');
+            if (roomIdInput) {
+                roomIdInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        // Определяем, создавать или присоединяться
+                        const roomId = roomIdInput.value.trim();
+                        if (roomId) {
+                            // Можно добавить логику проверки существования комнаты
+                            conference.createRoom(); // По умолчанию создаем
+                        }
+                    }
+                });
+            }
+
+            const chatInput = document.getElementById('chatMessage');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        conference.sendChatMessage();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
