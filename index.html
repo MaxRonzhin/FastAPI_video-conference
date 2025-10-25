@@ -15,6 +15,7 @@
                 <div id="connectionStatus" class="status-badge disconnected">Не подключено</div>
                 <div id="roomStatus" class="status-badge disconnected">Не в комнате</div>
                 <div id="roomIdDisplay" class="room-id-display" style="display: none;"></div>
+                <button id="leaveRoomBtn" class="leave-room-btn" style="display: none;" onclick="conference.leaveRoom()">Выйти</button>
             </div>
             <div class="header-right">
                 <button onclick="conference.toggleChat()" class="chat-toggle-btn">💬</button>
@@ -98,12 +99,7 @@
                 roomIdInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        // Определяем, создавать или присоединяться
-                        const roomId = roomIdInput.value.trim();
-                        if (roomId) {
-                            // Можно добавить логику проверки существования комнаты
-                            conference.createRoom(); // По умолчанию создаем
-                        }
+                        conference.createRoom();
                     }
                 });
             }

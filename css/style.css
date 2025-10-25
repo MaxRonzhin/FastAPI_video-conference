@@ -457,3 +457,44 @@ body {
         font-size: 13px;
     }
 }
+
+.leave-room-btn {
+    background: #ef4444;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* Добавьте это в конец вашего CSS файла */
+
+.leave-room-btn {
+    background: #ef4444;
+    border: none;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.leave-room-btn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+.room-id-display {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}

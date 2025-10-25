@@ -37,11 +37,7 @@ class ConferenceManager:
             if user_id in participants:
                 participants.remove(user_id)
                 # Уведомляем остальных участников
-                asyncio.create_task(self.notify_room_participants_immediate(room_id, {
-                    "type": "user_left",
-                    "user_id": user_id,
-                    "room_id": room_id
-                }))
+                asyncio.create_task(self.notify_user_left(room_id, user_id))
                 # Если комната пуста, помечаем для удаления
                 if not participants:
                     rooms_to_remove.append(room_id)
@@ -68,11 +64,7 @@ class ConferenceManager:
         if room_id in self.rooms and user_id in self.rooms[room_id]:
             self.rooms[room_id].remove(user_id)
             # Уведомляем остальных участников
-            await self.notify_room_participants_immediate(room_id, {
-                "type": "user_left",
-                "user_id": user_id,
-                "room_id": room_id
-            })
+            await self.notify_user_left(room_id, user_id)
             # Если комната пуста, удаляем её
             if not self.rooms[room_id]:
                 if room_id in self.rooms:
@@ -85,14 +77,41 @@ class ConferenceManager:
             except:
                 pass
 
-    async def notify_room_participants_immediate(self, room_id: str, message: dict):
-        """Немедленное уведомление участников комнаты"""
+    async def notify_user_joined(self, room_id: str, user_id: str):
+        """Уведомляем всех участников о новом пользователе"""
         if room_id in self.rooms:
+            message = {
+                "type": "user_joined",
+                "user_id": user_id,
+                "room_id": room_id,
+                "participants": self.rooms[room_id].copy()
+            }
             message_str = json.dumps(message)
             tasks = []
-            for user_id in self.rooms[room_id]:
-                if user_id in self.user_connections:
-                    tasks.append(self.send_to_user(user_id, message_str))
+            for participant in self.rooms[room_id]:
+                if participant in self.user_connections:
+                    tasks.append(self.send_to_user(participant, message_str))
+
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def notify_user_left(self, room_id: str, user_id: str):
+        """Уведомляем всех участников об уходе пользователя"""
+        if room_id in self.rooms:
+            message = {
+                "type": "user_left",
+                "user_id": user_id,
+                "room_id": room_id
+            }
+            message_str = json.dumps(message)
+            tasks = []
+            for participant in self.rooms[room_id]:
+                if participant in self.user_connections:
+                    tasks.append(self.send_to_user(participant, message_str))
+
+            # Также отправляем ушедшему пользователю (если он еще подключен)
+            if user_id in self.user_connections:
+                tasks.append(self.send_to_user(user_id, message_str))
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
@@ -143,13 +162,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 }
                 await manager.send_to_user(user_id, json.dumps(response))
                 if success:
-                    # Уведомляем ВСЕХ участников комнаты о новом пользователе (включая создателя)
-                    await manager.notify_room_participants_immediate(room_id, {
-                        "type": "user_joined",
-                        "user_id": user_id,
-                        "room_id": room_id,
-                        "participants": manager.rooms[room_id]
-                    })
+                    # Уведомляем всех участников (включая создателя) о новом пользователе
+                    await manager.notify_user_joined(room_id, user_id)
 
             elif message_type == "join_room":
                 room_id = message_data.get("room_id")
@@ -162,13 +176,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 }
                 await manager.send_to_user(user_id, json.dumps(response))
                 if success:
-                    # Уведомляем ВСЕХ участников комнаты о новом пользователе
-                    await manager.notify_room_participants_immediate(room_id, {
-                        "type": "user_joined",
-                        "user_id": user_id,
-                        "room_id": room_id,
-                        "participants": manager.rooms[room_id]
-                    })
+                    # Уведомляем всех участников о новом пользователе
+                    await manager.notify_user_joined(room_id, user_id)
 
             elif message_type == "leave_room":
                 room_id = message_data.get("room_id")

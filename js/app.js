@@ -138,8 +138,9 @@ class VideoConference {
         this.isInRoom = false;
         // Показываем панель управления
         document.getElementById('controlPanel').style.display = 'block';
-        // Скрываем ID комнаты
+        // Скрываем ID комнаты и кнопку выхода
         document.getElementById('roomIdDisplay').style.display = 'none';
+        document.getElementById('leaveRoomBtn').style.display = 'none';
     }
 
     async getMediaStream() {
@@ -194,8 +195,9 @@ class VideoConference {
             this.displaySystemMessage('Комната создана успешно');
             // Скрываем панель управления
             document.getElementById('controlPanel').style.display = 'none';
-            // Показываем ID комнаты
+            // Показываем ID комнаты и кнопку выхода
             this.showRoomId(data.room_id);
+            document.getElementById('leaveRoomBtn').style.display = 'block';
         } else {
             alert(data.message);
             this.displaySystemMessage(data.message);
@@ -209,8 +211,9 @@ class VideoConference {
             this.displaySystemMessage('Вы присоединились к комнате');
             // Скрываем панель управления
             document.getElementById('controlPanel').style.display = 'none';
-            // Показываем ID комнаты
+            // Показываем ID комнаты и кнопку выхода
             this.showRoomId(data.room_id);
+            document.getElementById('leaveRoomBtn').style.display = 'block';
         } else {
             alert(data.message);
             this.displaySystemMessage(data.message);
@@ -218,26 +221,33 @@ class VideoConference {
     }
 
     handleUserJoined(data) {
-        console.log('User joined:', data);
+        console.log('User joined data:', data);
+
+        // Обновляем статус комнаты с количеством участников
+        this.updateRoomStatus('connected', `В комнате: ${data.participants.length}`);
 
         if (data.user_id === this.userId) {
             // Это мы присоединились
-            this.updateRoomStatus('connected', `В комнате: ${data.participants.length}`);
             document.getElementById('mediaSection').style.display = 'grid';
+            this.displaySystemMessage('Вы присоединились к комнате');
 
             // Создаем соединения со всеми уже существующими участниками
             data.participants.forEach(participant => {
                 if (participant !== this.userId) {
                     console.log('Creating connection with existing participant:', participant);
-                    this.createPeerConnection(participant);
+                    setTimeout(() => {
+                        this.createPeerConnection(participant);
+                    }, 100);
                 }
             });
         } else {
             // Это другой участник присоединился
-            this.updateRoomStatus('connected', `В комнате: ${data.participants.length}`);
-            console.log('Creating connection with new participant:', data.user_id);
-            this.createPeerConnection(data.user_id);
             this.displaySystemMessage(`${data.user_id} присоединился`);
+            // Создаем соединение с новым участником
+            console.log('Creating connection with new participant:', data.user_id);
+            setTimeout(() => {
+                this.createPeerConnection(data.user_id);
+            }, 100);
         }
     }
 
@@ -255,6 +265,7 @@ class VideoConference {
 
         // Если соединение уже существует, закрываем его
         if (this.peerConnections.has(userId)) {
+            console.log('Closing existing connection with:', userId);
             this.peerConnections.get(userId).close();
             this.peerConnections.delete(userId);
         }
@@ -296,22 +307,35 @@ class VideoConference {
         // Обработчики состояния соединения
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${userId}:`, peerConnection.connectionState);
+            if (peerConnection.connectionState === 'connected') {
+                console.log('Connection established with:', userId);
+            } else if (peerConnection.connectionState === 'failed') {
+                console.log('Connection failed with:', userId);
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state with ${userId}:`, peerConnection.iceConnectionState);
         };
 
         this.peerConnections.set(userId, peerConnection);
 
-        // Создаем offer если мы инициатор (для новых участников)
+        // Создаем offer если мы инициатор
         if (this.userId < userId) {
             console.log('Creating offer to:', userId);
             setTimeout(() => {
                 this.createOffer(userId, peerConnection);
-            }, 100); // Небольшая задержка для стабильности
+            }, 200);
         }
     }
 
     async createOffer(userId, peerConnection) {
         try {
-            const offer = await peerConnection.createOffer();
+            console.log('Creating offer for:', userId);
+            const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+            });
             await peerConnection.setLocalDescription(offer);
 
             const offerMessage = {
@@ -320,8 +344,9 @@ class VideoConference {
                 sdp: offer
             };
             this.socket.send(JSON.stringify(offerMessage));
+            console.log('Offer sent to:', userId);
         } catch (error) {
-            console.error('Ошибка создания offer:', error);
+            console.error('Ошибка создания offer для', userId, ':', error);
         }
     }
 
@@ -336,7 +361,10 @@ class VideoConference {
         try {
             await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
 
-            const answer = await peerConnection.createAnswer();
+            const answer = await peerConnection.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+            });
             await peerConnection.setLocalDescription(answer);
 
             const answerMessage = {
@@ -345,8 +373,9 @@ class VideoConference {
                 sdp: answer
             };
             this.socket.send(JSON.stringify(answerMessage));
+            console.log('Answer sent to:', data.from);
         } catch (error) {
-            console.error('Ошибка обработки offer:', error);
+            console.error('Ошибка обработки offer от', data.from, ':', error);
         }
     }
 
@@ -356,8 +385,9 @@ class VideoConference {
         if (peerConnection) {
             try {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                console.log('Answer accepted from:', data.from);
             } catch (error) {
-                console.error('Ошибка установки answer:', error);
+                console.error('Ошибка установки answer от', data.from, ':', error);
             }
         }
     }
@@ -367,8 +397,9 @@ class VideoConference {
         if (peerConnection && data.candidate) {
             try {
                 await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                console.log('ICE candidate added from:', data.from);
             } catch (error) {
-                console.error('Ошибка добавления ICE кандидата:', error);
+                console.error('Ошибка добавления ICE кандидата от', data.from, ':', error);
             }
         }
     }
@@ -406,6 +437,7 @@ class VideoConference {
         grid.appendChild(tile);
 
         this.videoElements.set(userId, tile);
+        console.log('Added video tile for:', userId);
     }
 
     removeParticipantTile(userId) {
@@ -413,6 +445,7 @@ class VideoConference {
         if (tile) {
             tile.remove();
             this.videoElements.delete(userId);
+            console.log('Removed video tile for:', userId);
         }
     }
 
@@ -421,6 +454,7 @@ class VideoConference {
         if (peerConnection) {
             peerConnection.close();
             this.peerConnections.delete(userId);
+            console.log('Closed peer connection with:', userId);
         }
     }
 
@@ -637,6 +671,7 @@ class VideoConference {
         document.getElementById('disconnectBtn').disabled = true;
         document.getElementById('controlPanel').style.display = 'block';
         document.getElementById('roomIdDisplay').style.display = 'none';
+        document.getElementById('leaveRoomBtn').style.display = 'none';
 
         // Очищаем список комнат
         const roomsList = document.getElementById('roomsList');
