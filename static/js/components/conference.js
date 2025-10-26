@@ -1,6 +1,11 @@
-class VideoConference {
+/**
+ * Conference Manager Component
+ * Mediator Pattern Implementation
+ */
+
+class ConferenceManager {
     constructor() {
-        this.socket = null;
+        this.wsClient = wsClient; // Используем глобальный WebSocket клиент
         this.userId = '';
         this.roomId = '';
         this.localStream = null;
@@ -16,69 +21,50 @@ class VideoConference {
         this.isAudioEnabled = true;
         this.isScreenSharing = false;
 
-        // Привязываем методы
-        this.connect = this.connect.bind(this);
-        this.disconnect = this.disconnect.bind(this);
-        this.joinRoom = this.joinRoom.bind(this);
-        this.createRoom = this.createRoom.bind(this);
-        this.leaveRoom = this.leaveRoom.bind(this);
-        this.toggleVideo = this.toggleVideo.bind(this);
-        this.toggleAudio = this.toggleAudio.bind(this);
-        this.toggleScreenShare = this.toggleScreenShare.bind(this);
-        this.sendChatMessage = this.sendChatMessage.bind(this);
-        this.toggleChat = this.toggleChat.bind(this);
-        this.loadExistingRooms = this.loadExistingRooms.bind(this);
-        this.selectRoom = this.selectRoom.bind(this);
-        this.autoJoinRoom = this.autoJoinRoom.bind(this);
+        this.initializeWebSocket();
+        this.setupEventListeners();
     }
 
-    connect() {
-        this.userId = document.getElementById('userId').value.trim();
-        if (!this.userId) {
-            alert('Введите ваше имя');
-            return;
-        }
+    initializeWebSocket() {
+        // Подписываемся на события WebSocket
+        this.wsClient.subscribe('connected', (data) => {
+            this.onWebSocketConnected(data);
+        });
 
-        this.socket = new WebSocket(`ws://localhost:8000/ws/${this.userId}`);
+        this.wsClient.subscribe('disconnected', (data) => {
+            this.onWebSocketDisconnected(data);
+        });
 
-        this.socket.onopen = (event) => {
-            this.updateConnectionStatus('connected', 'Подключено');
-            document.getElementById('disconnectBtn').disabled = false;
-            document.getElementById('roomSection').style.display = 'block';
-            this.loadExistingRooms();
+        this.wsClient.subscribe('message', (data) => {
+            this.handleWebSocketMessage(data);
+        });
 
-            // Обновляем список комнат каждые 5 секунд
-            this.roomUpdateInterval = setInterval(() => {
+        this.wsClient.subscribe('error', (data) => {
+            this.onWebSocketError(data);
+        });
+    }
+
+    setupEventListeners() {
+        // Автоматическое обновление списка комнат
+        setInterval(() => {
+            if (this.wsClient.isConnected()) {
                 this.loadExistingRooms();
-            }, 5000);
-        };
-
-        this.socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleMessage(data);
-        };
-
-        this.socket.onclose = (event) => {
-            this.updateConnectionStatus('disconnected', 'Отключено');
-            document.getElementById('disconnectBtn').disabled = true;
-            this.cleanup();
-            if (this.roomUpdateInterval) {
-                clearInterval(this.roomUpdateInterval);
-                this.roomUpdateInterval = null;
             }
-        };
-
-        this.socket.onerror = (error) => {
-            console.error('Ошибка WebSocket:', error);
-            this.updateConnectionStatus('disconnected', 'Ошибка');
-        };
+        }, 5000);
     }
 
-    disconnect() {
-        if (this.socket) {
-            this.leaveRoom();
-            this.socket.close();
-        }
+    onWebSocketConnected(data) {
+        console.log('WebSocket connected:', data);
+        this.updateConnectionStatus('connected', 'Подключено');
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('roomSection').style.display = 'block';
+        this.loadExistingRooms();
+    }
+
+    onWebSocketDisconnected(data) {
+        console.log('WebSocket disconnected:', data);
+        this.updateConnectionStatus('disconnected', 'Отключено');
+        document.getElementById('disconnectBtn').disabled = true;
         this.cleanup();
         if (this.roomUpdateInterval) {
             clearInterval(this.roomUpdateInterval);
@@ -86,80 +72,12 @@ class VideoConference {
         }
     }
 
-    async createRoom() {
-        const roomId = document.getElementById('roomId').value.trim();
-        if (!roomId) {
-            alert('Введите ID комнаты');
-            return;
-        }
-        this.roomId = roomId;
-
-        const createMessage = {
-            type: 'create_room',
-            room_id: this.roomId
-        };
-        this.socket.send(JSON.stringify(createMessage));
+    onWebSocketError(data) {
+        console.error('WebSocket error:', data);
+        this.updateConnectionStatus('disconnected', 'Ошибка подключения');
     }
 
-    async joinRoom() {
-        const roomId = document.getElementById('roomId').value.trim();
-        if (!roomId) {
-            alert('Введите ID комнаты');
-            return;
-        }
-        this.roomId = roomId;
-
-        const joinMessage = {
-            type: 'join_room',
-            room_id: this.roomId
-        };
-        this.socket.send(JSON.stringify(joinMessage));
-    }
-
-    async joinRoomInternal() {
-        try {
-            // Получаем медиа поток
-            await this.getMediaStream();
-        } catch (error) {
-            console.error('Ошибка получения медиа потока:', error);
-            alert('Не удалось получить доступ к камере/микрофону');
-        }
-    }
-
-    leaveRoom() {
-        if (this.roomId && this.socket) {
-            const leaveMessage = {
-                type: 'leave_room',
-                room_id: this.roomId
-            };
-            this.socket.send(JSON.stringify(leaveMessage));
-        }
-        this.cleanupRoom();
-        this.isInRoom = false;
-        // Показываем панель управления
-        document.getElementById('controlPanel').style.display = 'block';
-        // Скрываем ID комнаты и кнопку выхода
-        document.getElementById('roomIdDisplay').style.display = 'none';
-        document.getElementById('leaveRoomBtn').style.display = 'none';
-    }
-
-    async getMediaStream() {
-        try {
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-
-            // Отображаем локальное видео
-            this.addParticipantTile(this.userId, this.localStream, true);
-
-        } catch (error) {
-            console.error('Ошибка получения медиа потока:', error);
-            throw error;
-        }
-    }
-
-    handleMessage(data) {
+    handleWebSocketMessage(data) {
         switch (data.type) {
             case 'room_creation_response':
                 this.handleRoomCreationResponse(data);
@@ -185,6 +103,101 @@ class VideoConference {
             case 'room_message':
                 this.displayChatMessage(data.from, data.message, 'received');
                 break;
+        }
+    }
+
+    // Public API methods
+    connect() {
+        this.userId = document.getElementById('userId').value.trim();
+        if (!this.userId) {
+            alert('Введите ваше имя');
+            return;
+        }
+
+        try {
+            this.wsClient.connect(this.userId);
+        } catch (error) {
+            console.error('Connection error:', error);
+            alert('Ошибка подключения: ' + error.message);
+        }
+    }
+
+    disconnect() {
+        this.leaveRoom();
+        this.wsClient.disconnect();
+    }
+
+    createRoom() {
+        const roomId = document.getElementById('roomId').value.trim();
+        if (!roomId) {
+            alert('Введите ID комнаты');
+            return;
+        }
+        this.roomId = roomId;
+
+        const createMessage = {
+            type: 'create_room',
+            room_id: this.roomId
+        };
+        this.wsClient.send(createMessage);
+    }
+
+    joinRoom() {
+        const roomId = document.getElementById('roomId').value.trim();
+        if (!roomId) {
+            alert('Введите ID комнаты');
+            return;
+        }
+        this.roomId = roomId;
+
+        const joinMessage = {
+            type: 'join_room',
+            room_id: this.roomId
+        };
+        this.wsClient.send(joinMessage);
+    }
+
+    leaveRoom() {
+        if (this.roomId) {
+            const leaveMessage = {
+                type: 'leave_room',
+                room_id: this.roomId
+            };
+            this.wsClient.send(leaveMessage);
+        }
+        this.cleanupRoom();
+        this.isInRoom = false;
+        // Показываем панель управления
+        document.getElementById('controlPanel').style.display = 'block';
+        // Скрываем ID комнаты и кнопку выхода
+        document.getElementById('roomIdDisplay').style.display = 'none';
+        document.getElementById('leaveRoomBtn').style.display = 'none';
+    }
+
+    // Private methods
+    async getMediaStream() {
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+
+            // Отображаем локальное видео
+            this.addParticipantTile(this.userId, this.localStream, true);
+
+        } catch (error) {
+            console.error('Ошибка получения медиа потока:', error);
+            throw error;
+        }
+    }
+
+    async joinRoomInternal() {
+        try {
+            // Получаем медиа поток
+            await this.getMediaStream();
+        } catch (error) {
+            console.error('Ошибка получения медиа потока:', error);
+            alert('Не удалось получить доступ к камере/микрофону');
         }
     }
 
@@ -294,7 +307,7 @@ class VideoConference {
                     to: userId,
                     candidate: event.candidate
                 };
-                this.socket.send(JSON.stringify(candidateMessage));
+                this.wsClient.send(candidateMessage);
             }
         };
 
@@ -307,15 +320,6 @@ class VideoConference {
         // Обработчики состояния соединения
         peerConnection.onconnectionstatechange = () => {
             console.log(`Connection state with ${userId}:`, peerConnection.connectionState);
-            if (peerConnection.connectionState === 'connected') {
-                console.log('Connection established with:', userId);
-            } else if (peerConnection.connectionState === 'failed') {
-                console.log('Connection failed with:', userId);
-            }
-        };
-
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log(`ICE connection state with ${userId}:`, peerConnection.iceConnectionState);
         };
 
         this.peerConnections.set(userId, peerConnection);
@@ -343,7 +347,7 @@ class VideoConference {
                 to: userId,
                 sdp: offer
             };
-            this.socket.send(JSON.stringify(offerMessage));
+            this.wsClient.send(offerMessage);
             console.log('Offer sent to:', userId);
         } catch (error) {
             console.error('Ошибка создания offer для', userId, ':', error);
@@ -372,7 +376,7 @@ class VideoConference {
                 to: data.from,
                 sdp: answer
             };
-            this.socket.send(JSON.stringify(answerMessage));
+            this.wsClient.send(answerMessage);
             console.log('Answer sent to:', data.from);
         } catch (error) {
             console.error('Ошибка обработки offer от', data.from, ':', error);
@@ -561,7 +565,7 @@ class VideoConference {
             message: message
         };
 
-        this.socket.send(JSON.stringify(chatMessage));
+        this.wsClient.send(chatMessage);
         this.displayChatMessage(this.userId, message, 'sent');
         messageInput.value = '';
     }
@@ -620,13 +624,6 @@ class VideoConference {
             }
         } catch (error) {
             console.error('Ошибка загрузки комнат:', error);
-        }
-    }
-
-    selectRoom(roomId) {
-        const roomIdInput = document.getElementById('roomId');
-        if (roomIdInput) {
-            roomIdInput.value = roomId;
         }
     }
 
