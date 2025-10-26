@@ -11,11 +11,23 @@
         <!-- Верхняя панель -->
         <div class="header">
             <div class="header-left">
+                <button onclick="conference.toggleMenu()" class="menu-toggle-btn">☰</button>
                 <h1>🎥 Video Conference</h1>
                 <div id="connectionStatus" class="status-badge disconnected">Не подключено</div>
                 <div id="roomStatus" class="status-badge disconnected">Не в комнате</div>
                 <div id="roomIdDisplay" class="room-id-display" style="display: none;"></div>
                 <button id="leaveRoomBtn" class="leave-room-btn" style="display: none;" onclick="conference.leaveRoom()">Выйти</button>
+                <button onmousedown="conference.showRaisedHands()" onmouseup="conference.hideRaisedHands()" class="raised-hands-btn" id="raisedHandsBtn" style="display: none;">
+                    <span class="hands-icon">✋</span>
+                    <span class="hands-count" id="handsCount">0</span>
+                </button>
+                <button onclick="conference.toggleRaiseHand()" class="raise-hand-header-btn" id="raiseHandHeaderBtn" title="Поднять руку" style="display: none;">✋</button>
+                <div class="raised-hands-dropdown" id="raisedHandsDropdown">
+                    <div class="dropdown-title">Поднятые руки</div>
+                    <div class="hands-list" id="handsList">
+                        <div class="no-hands">Пока нет поднятых рук</div>
+                    </div>
+                </div>
             </div>
             <div class="header-right">
                 <button onclick="conference.toggleChat()" class="chat-toggle-btn">💬</button>
@@ -25,7 +37,7 @@
         <!-- Основной контент -->
         <div class="content-wrapper">
             <!-- Левая панель - управление -->
-            <div class="control-panel" id="controlPanel">
+            <div class="control-sidebar" id="controlPanel">
                 <div class="connection-section">
                     <input type="text" id="userId" placeholder="Ваше имя">
                     <button onclick="conference.connect()" class="btn primary">Подключиться</button>

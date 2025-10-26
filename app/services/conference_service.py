@@ -136,5 +136,26 @@ class ConferenceService:
 
         return {"rooms": rooms_data}
 
+    async def handle_raise_hand(self, message_data: Dict[str, Any], from_user: str) -> None:
+        """
+        Обрабатывает сообщение о поднятой/опущенной руке
+        
+        Args:
+            message_data (Dict[str, Any]): Данные сообщения
+            from_user (str): Идентификатор отправителя
+        """
+        room_id = message_data.get("room_id")
+        raised = message_data.get("raised", False)
+        
+        if room_id:
+            # Создаем сообщение о поднятой/опущенной руке
+            message_data["user_id"] = from_user
+            message_type = "hand_raised" if raised else "hand_lowered"
+            message_data["type"] = message_type
+            
+            message_str = json.dumps(message_data)
+            # Отправляем всем участникам комнаты, включая отправителя
+            await self.manager.send_to_room(room_id, message_str)
+
 # Глобальный экземпляр сервиса
 conference_service = ConferenceService()

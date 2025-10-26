@@ -125,6 +125,9 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             elif message_type == "room_message":
                 await conference_service.handle_room_message(message_data, user_id)
 
+            elif message_type == "raise_hand":
+                await conference_service.handle_raise_hand(message_data, user_id)
+
     except WebSocketDisconnect:
         websocket_manager.disconnect(user_id)
         logger.info(f"WebSocket disconnected for user {user_id}")

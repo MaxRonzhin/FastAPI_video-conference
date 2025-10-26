@@ -13,6 +13,7 @@ class ConferenceManager {
         this.peerConnections = new Map();
         this.videoElements = new Map();
         this.isChatOpen = false;
+        this.isMenuOpen = false;
         this.roomUpdateInterval = null;
         this.isInRoom = false;
 
@@ -20,6 +21,10 @@ class ConferenceManager {
         this.isVideoEnabled = true;
         this.isAudioEnabled = true;
         this.isScreenSharing = false;
+
+        // Состояния поднятой руки
+        this.isHandRaised = false;
+        this.raisedHands = []; // Список пользователей с поднятыми руками
 
         this.initializeWebSocket();
         this.setupEventListeners();
@@ -102,6 +107,12 @@ class ConferenceManager {
                 break;
             case 'room_message':
                 this.displayChatMessage(data.from, data.message, 'received');
+                break;
+            case 'hand_raised':
+                this.handleHandRaised(data);
+                break;
+            case 'hand_lowered':
+                this.handleHandLowered(data);
                 break;
         }
     }
@@ -206,11 +217,11 @@ class ConferenceManager {
             this.isInRoom = true;
             this.joinRoomInternal();
             this.displaySystemMessage('Комната создана успешно');
-            // Скрываем панель управления
-            document.getElementById('controlPanel').style.display = 'none';
             // Показываем ID комнаты и кнопку выхода
             this.showRoomId(data.room_id);
             document.getElementById('leaveRoomBtn').style.display = 'block';
+            document.getElementById('raisedHandsBtn').style.display = 'inline-flex';
+            document.getElementById('raiseHandHeaderBtn').style.display = 'block';
         } else {
             alert(data.message);
             this.displaySystemMessage(data.message);
@@ -222,11 +233,11 @@ class ConferenceManager {
             this.isInRoom = true;
             this.joinRoomInternal();
             this.displaySystemMessage('Вы присоединились к комнате');
-            // Скрываем панель управления
-            document.getElementById('controlPanel').style.display = 'none';
             // Показываем ID комнаты и кнопку выхода
             this.showRoomId(data.room_id);
             document.getElementById('leaveRoomBtn').style.display = 'block';
+            document.getElementById('raisedHandsBtn').style.display = 'inline-flex';
+            document.getElementById('raiseHandHeaderBtn').style.display = 'block';
         } else {
             alert(data.message);
             this.displaySystemMessage(data.message);
@@ -598,6 +609,21 @@ class ConferenceManager {
         }
     }
 
+    toggleMenu() {
+        /**
+         * Переключает отображение панели управления
+         */
+        this.isMenuOpen = !this.isMenuOpen;
+        const controlPanel = document.getElementById('controlPanel');
+        if (controlPanel) {
+            if (this.isMenuOpen) {
+                controlPanel.classList.add('open');
+            } else {
+                controlPanel.classList.remove('open');
+            }
+        }
+    }
+
     async loadExistingRooms() {
         try {
             const response = await fetch('http://localhost:8000/rooms');
@@ -666,9 +692,10 @@ class ConferenceManager {
         this.roomId = '';
         document.getElementById('roomSection').style.display = 'none';
         document.getElementById('disconnectBtn').disabled = true;
-        document.getElementById('controlPanel').style.display = 'block';
         document.getElementById('roomIdDisplay').style.display = 'none';
         document.getElementById('leaveRoomBtn').style.display = 'none';
+        document.getElementById('raisedHandsBtn').style.display = 'none';
+        document.getElementById('raiseHandHeaderBtn').style.display = 'none';
 
         // Очищаем список комнат
         const roomsList = document.getElementById('roomsList');
@@ -678,6 +705,11 @@ class ConferenceManager {
     }
 
     cleanupRoom() {
+        // Очищаем состояние поднятой руки
+        this.isHandRaised = false;
+        this.raisedHands = [];
+        this.updateRaisedHandsDisplay();
+        
         // Очищаем все peer connections
         this.peerConnections.forEach(pc => pc.close());
         this.peerConnections.clear();
@@ -708,6 +740,12 @@ class ConferenceManager {
         // Скрываем секции
         document.getElementById('mediaSection').style.display = 'none';
 
+        // Сбрасываем кнопку руки
+        const raiseHandHeaderBtn = document.getElementById('raiseHandHeaderBtn');
+        if (raiseHandHeaderBtn) {
+            raiseHandHeaderBtn.classList.remove('raised');
+        }
+
         this.roomId = '';
         this.updateRoomStatus('disconnected', 'Не в комнате');
 
@@ -715,6 +753,13 @@ class ConferenceManager {
         this.isChatOpen = false;
         const chatSidebar = document.getElementById('chatSidebar');
         chatSidebar.classList.remove('open');
+
+        // Закрываем меню
+        this.isMenuOpen = false;
+        const controlPanel = document.getElementById('controlPanel');
+        if (controlPanel) {
+            controlPanel.classList.remove('open');
+        }
     }
 
     toggleEmojiPicker() {
@@ -752,6 +797,111 @@ class ConferenceManager {
             if (emojiPicker) {
                 emojiPicker.classList.remove('show');
             }
+        }
+    }
+
+    toggleRaiseHand() {
+        /**
+         * Переключает состояние поднятой руки
+         */
+        if (!this.isInRoom || !this.roomId) return;
+
+        const wasRaised = this.isHandRaised;
+        this.isHandRaised = !this.isHandRaised;
+        
+        const raiseHandHeaderBtn = document.getElementById('raiseHandHeaderBtn');
+        if (raiseHandHeaderBtn) {
+            if (this.isHandRaised) {
+                raiseHandHeaderBtn.classList.add('raised');
+            } else {
+                raiseHandHeaderBtn.classList.remove('raised');
+            }
+        }
+
+        // Если состояние изменилось, отправляем сообщение
+        if (wasRaised !== this.isHandRaised) {
+            const message = {
+                type: 'raise_hand',
+                room_id: this.roomId,
+                raised: this.isHandRaised
+            };
+            this.wsClient.send(message);
+        }
+    }
+
+    handleHandRaised(data) {
+        /**
+         * Обрабатывает сообщение о поднятой руке
+         * @param {Object} data - Данные о поднятой руке
+         */
+        if (data.user_id && !this.raisedHands.includes(data.user_id)) {
+            this.raisedHands.push(data.user_id);
+            this.updateRaisedHandsDisplay();
+        }
+    }
+
+    handleHandLowered(data) {
+        /**
+         * Обрабатывает сообщение об опущенной руке
+         * @param {Object} data - Данные об опущенной руке
+         */
+        const index = this.raisedHands.indexOf(data.user_id);
+        if (index > -1) {
+            this.raisedHands.splice(index, 1);
+            this.updateRaisedHandsDisplay();
+        }
+    }
+
+    updateRaisedHandsDisplay() {
+        /**
+         * Обновляет отображение счетчика и списка поднятых рук
+         */
+        const handsCount = document.getElementById('handsCount');
+        if (handsCount) {
+            handsCount.textContent = this.raisedHands.length;
+        }
+
+        // Обновляем выпадающий список
+        this.updateRaisedHandsDropdown();
+    }
+
+    updateRaisedHandsDropdown() {
+        /**
+         * Обновляет содержимое выпадающего списка поднятых рук
+         */
+        const handsList = document.getElementById('handsList');
+        if (!handsList) return;
+
+        if (this.raisedHands.length === 0) {
+            handsList.innerHTML = '<div class="no-hands">Пока нет поднятых рук</div>';
+        } else {
+            handsList.innerHTML = this.raisedHands
+                .map(userId => `
+                    <div class="hand-item">
+                        <span class="hand-emoji">✋</span>
+                        <span class="hand-name">${userId}</span>
+                    </div>
+                `).join('');
+        }
+    }
+
+    showRaisedHands() {
+        /**
+         * Показывает выпадающее меню с поднятыми руками
+         */
+        const dropdown = document.getElementById('raisedHandsDropdown');
+        if (dropdown) {
+            dropdown.classList.add('show');
+        }
+    }
+
+    hideRaisedHands() {
+        /**
+         * Скрывает выпадающее меню с поднятыми руками
+         */
+        const dropdown = document.getElementById('raisedHandsDropdown');
+        if (dropdown) {
+            dropdown.classList.remove('show');
         }
     }
 }
