@@ -1,5 +1,6 @@
 """
-API Routes
+API маршруты и эндпоинты
+Определяет все HTTP и WebSocket эндпоинты приложения
 """
 
 import json
@@ -16,7 +17,12 @@ from app.core.logger import logger
 router = APIRouter()
 
 def get_index_html():
-    """Read index.html file"""
+    """
+    Читает файл index.html из статической директории
+    
+    Returns:
+        str: Содержимое HTML файла или сообщение об ошибке
+    """
     try:
         with open("static/index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -25,12 +31,22 @@ def get_index_html():
 
 @router.get("/", response_class=HTMLResponse)
 async def root():
-    """Root endpoint serving main page"""
+    """
+    Корневой эндпоинт приложения
+    
+    Returns:
+        str: HTML страница главной страницы приложения
+    """
     return get_index_html()
 
 @router.get("/favicon.ico")
 async def favicon():
-    """Favicon endpoint"""
+    """
+    Эндпоинт для получения favicon
+    
+    Returns:
+        FileResponse: Файл favicon.ico или пустой ответ
+    """
     favicon_path = "static/favicon.ico"
     if os.path.exists(favicon_path):
         return FileResponse(favicon_path)
@@ -38,7 +54,12 @@ async def favicon():
 
 @router.get("/apple-touch-icon.png")
 async def apple_touch_icon():
-    """Apple touch icon endpoint"""
+    """
+    Эндпоинт для получения Apple touch иконки
+    
+    Returns:
+        FileResponse: Файл иконки или пустой ответ
+    """
     icon_path = "static/apple-touch-icon.png"
     if os.path.exists(icon_path):
         return FileResponse(icon_path)
@@ -46,7 +67,12 @@ async def apple_touch_icon():
 
 @router.get("/apple-touch-icon-precomposed.png")
 async def apple_touch_icon_precomposed():
-    """Apple touch icon precomposed endpoint"""
+    """
+    Эндпоинт для получения предварительно обработанной Apple touch иконки
+    
+    Returns:
+        FileResponse: Файл иконки или пустой ответ
+    """
     icon_path = "static/apple-touch-icon-precomposed.png"
     if os.path.exists(icon_path):
         return FileResponse(icon_path)
@@ -54,7 +80,13 @@ async def apple_touch_icon_precomposed():
 
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
-    """WebSocket endpoint for real-time communication"""
+    """
+    WebSocket эндпоинт для реального времени коммуникации
+    
+    Args:
+        websocket (WebSocket): WebSocket соединение
+        user_id (str): Уникальный идентификатор пользователя
+    """
     await websocket_manager.connect(user_id, websocket)
 
     try:
@@ -102,12 +134,25 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 
 @router.get("/rooms")
 async def get_rooms():
-    """Get list of active rooms"""
+    """
+    Получает список всех активных комнат
+    
+    Returns:
+        dict: Словарь со списком активных комнат и их участников
+    """
     return conference_service.get_rooms_list()
 
 @router.get("/room/{room_id}/participants")
 async def get_room_participants(room_id: str):
-    """Get participants in specific room"""
+    """
+    Получает список участников в конкретной комнате
+    
+    Args:
+        room_id (str): Идентификатор комнаты
+        
+    Returns:
+        dict: Словарь с ID комнаты и списком участников
+    """
     if room_id in websocket_manager.rooms:
         participants = websocket_manager.rooms[room_id].participants.copy()
         return {"room_id": room_id, "participants": participants}

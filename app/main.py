@@ -1,5 +1,6 @@
 """
-Main Application Module
+Модуль основного приложения
+Главная точка входа для FastAPI приложения видеоконференций
 """
 
 import os
@@ -17,7 +18,12 @@ from app.core.config import settings
 from app.api.routes import router
 
 def get_index_html():
-    """Read index.html file"""
+    """
+    Читает файл index.html из статической директории
+    
+    Returns:
+        str: Содержимое HTML файла или сообщение об ошибке
+    """
     try:
         with open("static/index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -48,7 +54,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Корневой эндпоинт"""
+    """
+    Корневой эндпоинт приложения
+    
+    Returns:
+        str: HTML страница главной страницы приложения
+    """
     return get_index_html()
 
 if __name__ == "__main__":
