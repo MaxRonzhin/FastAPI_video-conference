@@ -1,3 +1,5 @@
+## README in other languages: [Russian](README_RU.md)
+
 # Video Conference Application
 
 WebRTC-based video conference application built with modern architecture patterns and best practices.
@@ -412,13 +414,3 @@ export LOG_LEVEL=DEBUG
 ## 📄 License
 
 MIT License - see `LICENSE` file for details.
-
-## 🙏 Acknowledgments
-
-- FastAPI for the web framework
-- WebRTC for real-time communication
-- Modern JavaScript patterns for frontend architecture
-
----
-
-**Built with ❤️ using modern software architecture patterns**
