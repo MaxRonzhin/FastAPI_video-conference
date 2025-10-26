@@ -70,8 +70,38 @@
             <div class="chat-content">
                 <div class="chat-messages" id="chatMessages"></div>
                 <div class="chat-input-area">
+                    <button onclick="conference.toggleEmojiPicker()" class="emoji-btn">😊</button>
                     <input type="text" id="chatMessage" placeholder="Сообщение...">
                     <button onclick="conference.sendChatMessage()" class="send-btn">➤</button>
+                </div>
+                <div class="emoji-picker" id="emojiPicker">
+                    <div class="emoji-grid">
+                        <span class="emoji-item" onclick="conference.insertEmoji('😀')">😀</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😂')">😂</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😊')">😊</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😍')">😍</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🤔')">🤔</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('👍')">👍</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('👎')">👎</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('❤️')">❤️</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🎉')">🎉</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🔥')">🔥</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('✅')">✅</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('❌')">❌</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('💪')">💪</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🙌')">🙌</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('👏')">👏</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🎯')">🎯</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🚀')">🚀</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('⭐')">⭐</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('💯')">💯</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😎')">😎</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🥳')">🥳</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😴')">😴</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😢')">😢</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('😡')">😡</span>
+                        <span class="emoji-item" onclick="conference.insertEmoji('🎊')">🎊</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -116,6 +146,19 @@
                     }
                 });
             }
+
+            // Закрываем палитру эмодзи при клике вне её области
+            document.addEventListener('click', function(e) {
+                const emojiPicker = document.getElementById('emojiPicker');
+                const emojiBtn = document.querySelector('.emoji-btn');
+                
+                if (emojiPicker && emojiBtn) {
+                    // Проверяем, что клик был вне палитры эмодзи и кнопки
+                    if (!emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
+                        emojiPicker.classList.remove('show');
+                    }
+                }
+            });
         });
     </script>
 </body>

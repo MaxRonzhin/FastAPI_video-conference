@@ -397,6 +397,28 @@ body {
     padding: 15px;
     border-top: 1px solid #333;
     background: #1a1a1a;
+    gap: 8px;
+    position: relative;
+}
+
+.emoji-btn {
+    background: #374151;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+    background: #4b5563;
+    transform: scale(1.1);
 }
 
 .chat-input-area input {
@@ -407,7 +429,6 @@ body {
     border-radius: 6px;
     color: white;
     font-size: 13px;
-    margin-right: 8px;
 }
 
 .send-btn {
@@ -426,6 +447,50 @@ body {
 
 .send-btn:hover {
     background: #2563eb;
+}
+
+.emoji-picker {
+    position: absolute;
+    bottom: 70px;
+    left: 15px;
+    width: calc(100% - 30px);
+    max-height: 300px;
+    background: #2d2d2d;
+    border: 1px solid #404040;
+    border-radius: 8px;
+    padding: 10px;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.emoji-picker.show {
+    display: block;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.emoji-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #374151;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 20px;
+}
+
+.emoji-item:hover {
+    background: #4b5563;
+    transform: scale(1.2);
 }
 
 /* Адаптивность */

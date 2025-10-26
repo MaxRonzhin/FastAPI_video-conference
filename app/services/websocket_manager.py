@@ -1,6 +1,6 @@
 """
-WebSocket Connection Manager
-Singleton Pattern Implementation
+Менеджер WebSocket соединений
+Реализация паттерна Singleton для управления подключениями
 """
 
 import json
@@ -12,30 +12,56 @@ from app.core.logger import logger
 from app.models.room import Room
 
 class WebSocketManager:
-    """WebSocket connection manager using Singleton pattern"""
+    """
+    Менеджер WebSocket соединений, использующий паттерн Singleton
+    
+    Управляет активными подключениями, комнатами конференций
+    и пересылкой сообщений между пользователями
+    """
 
     _instance: Optional['WebSocketManager'] = None
 
     def __new__(cls) -> 'WebSocketManager':
+        """
+        Создает единственный экземпляр менеджера (Singleton)
+        
+        Returns:
+            WebSocketManager: Единственный экземпляр менеджера
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialize()
         return cls._instance
 
     def _initialize(self) -> None:
-        """Initialize manager"""
+        """
+        Инициализирует менеджер соединений
+        
+        Создает словари для активных подключений и комнат
+        """
         self.active_connections: Dict[str, WebSocket] = {}
         self.rooms: Dict[str, Room] = {}
         self.logger = logger
 
     async def connect(self, user_id: str, websocket: WebSocket) -> None:
-        """Connect user"""
+        """
+        Подключает пользователя через WebSocket
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+            websocket (WebSocket): WebSocket соединение
+        """
         await websocket.accept()
         self.active_connections[user_id] = websocket
         self.logger.info(f"User {user_id} connected")
 
     def disconnect(self, user_id: str) -> None:
-        """Disconnect user"""
+        """
+        Отключает пользователя и удаляет его из всех комнат
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+        """
         if user_id in self.active_connections:
             del self.active_connections[user_id]
             self.logger.info(f"User {user_id} disconnected")
@@ -44,7 +70,16 @@ class WebSocketManager:
             self._remove_user_from_all_rooms(user_id)
 
     async def send_to_user(self, user_id: str, message: str) -> bool:
-        """Send message to specific user"""
+        """
+        Отправляет сообщение конкретному пользователю
+        
+        Args:
+            user_id (str): Идентификатор получателя
+            message (str): Текст сообщения
+            
+        Returns:
+            bool: True если сообщение отправлено успешно
+        """
         if user_id in self.active_connections:
             try:
                 await self.active_connections[user_id].send_text(message)
@@ -55,7 +90,14 @@ class WebSocketManager:
         return False
 
     async def send_to_room(self, room_id: str, message: str, exclude_user: str = None) -> None:
-        """Send message to all room participants"""
+        """
+        Отправляет сообщение всем участникам комнаты
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            message (str): Текст сообщения
+            exclude_user (str, optional): ID пользователя, исключаемого из рассылки
+        """
         if room_id in self.rooms:
             tasks = []
             for user_id in self.rooms[room_id].participants:
@@ -66,7 +108,16 @@ class WebSocketManager:
                 await asyncio.gather(*tasks, return_exceptions=True)
 
     def create_room(self, room_id: str, creator_id: str) -> bool:
-        """Create new room"""
+        """
+        Создает новую комнату конференции
+        
+        Args:
+            room_id (str): Уникальный идентификатор комнаты
+            creator_id (str): ID пользователя-создателя
+            
+        Returns:
+            bool: True если комната создана, False если уже существует
+        """
         if room_id in self.rooms:
             return False
 
@@ -77,7 +128,16 @@ class WebSocketManager:
         return True
 
     def join_room(self, room_id: str, user_id: str) -> bool:
-        """Join existing room"""
+        """
+        Присоединяет пользователя к комнате
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            user_id (str): Идентификатор пользователя
+            
+        Returns:
+            bool: True если пользователь добавлен в комнату
+        """
         if room_id not in self.rooms:
             return False
 
@@ -87,7 +147,13 @@ class WebSocketManager:
         return success
 
     async def leave_room(self, room_id: str, user_id: str) -> None:
-        """Leave room"""
+        """
+        Удаляет пользователя из комнаты
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            user_id (str): Идентификатор пользователя
+        """
         if room_id in self.rooms:
             self.rooms[room_id].remove_participant(user_id)
             self.logger.info(f"User {user_id} left room {room_id}")
@@ -101,7 +167,13 @@ class WebSocketManager:
                 self.logger.info(f"Room {room_id} deleted (empty)")
 
     async def _notify_user_left(self, room_id: str, user_id: str) -> None:
-        """Notify room participants about user leaving"""
+        """
+        Уведомляет участников комнаты о выходе пользователя
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            user_id (str): Идентификатор покинувшего пользователя
+        """
         if room_id in self.rooms:
             message = json.dumps({
                 "type": "user_left",
@@ -111,7 +183,13 @@ class WebSocketManager:
             await self.send_to_room(room_id, message)
 
     async def notify_user_joined(self, room_id: str, user_id: str) -> None:
-        """Notify all participants about new user"""
+        """
+        Уведомляет всех участников о присоединении нового пользователя
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            user_id (str): Идентификатор присоединившегося пользователя
+        """
         if room_id in self.rooms:
             message = json.dumps({
                 "type": "user_joined",
@@ -122,7 +200,12 @@ class WebSocketManager:
             await self.send_to_room(room_id, message)
 
     def _remove_user_from_all_rooms(self, user_id: str) -> None:
-        """Remove user from all rooms"""
+        """
+        Удаляет пользователя из всех комнат
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+        """
         rooms_to_remove = []
         for room_id, room in self.rooms.items():
             if room.remove_participant(user_id):

@@ -1,6 +1,6 @@
 """
-Conference Service
-Business Logic Layer
+Сервис видеоконференций
+Слой бизнес-логики для обработки конференций и комнат
 """
 
 import json
@@ -11,14 +11,33 @@ from app.core.logger import logger
 from app.core.config import settings
 
 class ConferenceService:
-    """Conference service implementing business logic"""
+    """
+    Сервис видеоконференций, реализующий бизнес-логику
+    
+    Управляет созданием комнат, присоединением пользователей,
+    обработкой WebRTC сообщений и сообщений чата
+    """
 
     def __init__(self):
+        """
+        Инициализирует сервис конференций
+        
+        Создает связи с менеджером WebSocket соединений и логгером
+        """
         self.manager = websocket_manager
         self.logger = logger
 
     async def create_room(self, user_id: str, room_id: str) -> Dict[str, Any]:
-        """Create new conference room"""
+        """
+        Создает новую конференц-комнату
+        
+        Args:
+            user_id (str): Идентификатор пользователя-создателя
+            room_id (str): Уникальный идентификатор комнаты
+            
+        Returns:
+            Dict[str, Any]: Результат создания комнаты с информацией об успехе
+        """
         success = self.manager.create_room(room_id, user_id)
 
         response = {
@@ -34,7 +53,16 @@ class ConferenceService:
         return response
 
     async def join_room(self, user_id: str, room_id: str) -> Dict[str, Any]:
-        """Join existing conference room"""
+        """
+        Присоединяет пользователя к существующей конференц-комнате
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+            room_id (str): Идентификатор комнаты
+            
+        Returns:
+            Dict[str, Any]: Результат присоединения к комнате
+        """
         success = self.manager.join_room(room_id, user_id)
 
         response = {
@@ -50,11 +78,23 @@ class ConferenceService:
         return response
 
     async def leave_room(self, user_id: str, room_id: str) -> None:
-        """Leave conference room"""
+        """
+        Покидает конференц-комнату
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+            room_id (str): Идентификатор комнаты
+        """
         await self.manager.leave_room(room_id, user_id)
 
     async def handle_webrtc_message(self, message_data: Dict[str, Any], from_user: str) -> None:
-        """Handle WebRTC signaling messages"""
+        """
+        Обрабатывает WebRTC signaling сообщения
+        
+        Args:
+            message_data (Dict[str, Any]): Данные WebRTC сообщения
+            from_user (str): Идентификатор отправителя
+        """
         message_type = message_data.get("type")
         target_user = message_data.get("to")
 
@@ -65,7 +105,13 @@ class ConferenceService:
             await self.manager.send_to_user(target_user, message_str)
 
     async def handle_room_message(self, message_data: Dict[str, Any], from_user: str) -> None:
-        """Handle room chat messages"""
+        """
+        Обрабатывает сообщения чата комнаты
+        
+        Args:
+            message_data (Dict[str, Any]): Данные сообщения
+            from_user (str): Идентификатор отправителя
+        """
         room_id = message_data.get("room_id")
         if room_id:
             # Добавляем информацию об отправителе
@@ -74,7 +120,12 @@ class ConferenceService:
             await self.manager.send_to_room(room_id, message_str, exclude_user=from_user)
 
     def get_rooms_list(self) -> Dict[str, Any]:
-        """Get list of all active rooms"""
+        """
+        Получает список всех активных комнат
+        
+        Returns:
+            Dict[str, Any]: Словарь со списком активных комнат и их участников
+        """
         rooms_data = []
         for room_id, room in self.manager.rooms.items():
             rooms_data.append({

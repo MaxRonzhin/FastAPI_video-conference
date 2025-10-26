@@ -716,4 +716,42 @@ class ConferenceManager {
         const chatSidebar = document.getElementById('chatSidebar');
         chatSidebar.classList.remove('open');
     }
+
+    toggleEmojiPicker() {
+        /**
+         * Переключает отображение палитры эмодзи
+         */
+        const emojiPicker = document.getElementById('emojiPicker');
+        if (emojiPicker) {
+            emojiPicker.classList.toggle('show');
+        }
+    }
+
+    insertEmoji(emoji) {
+        /**
+         * Вставляет выбранный эмодзи в поле ввода сообщения
+         * @param {string} emoji - Символ эмодзи для вставки
+         */
+        const chatInput = document.getElementById('chatMessage');
+        if (chatInput) {
+            // Вставляем эмодзи в текущую позицию курсора
+            const start = chatInput.selectionStart;
+            const end = chatInput.selectionEnd;
+            const text = chatInput.value;
+            
+            chatInput.value = text.substring(0, start) + emoji + text.substring(end);
+            
+            // Устанавливаем курсор после вставленного эмодзи
+            chatInput.selectionStart = chatInput.selectionEnd = start + emoji.length;
+            
+            // Фокусируемся на поле ввода
+            chatInput.focus();
+            
+            // Закрываем палитру эмодзи
+            const emojiPicker = document.getElementById('emojiPicker');
+            if (emojiPicker) {
+                emojiPicker.classList.remove('show');
+            }
+        }
+    }
 }

@@ -1,5 +1,6 @@
 """
-Utility Helper Functions
+Вспомогательные утилиты
+Функции для валидации и обработки данных
 """
 
 import json
@@ -7,18 +8,39 @@ from typing import Any, Dict, Optional
 import re
 
 class MessageValidator:
-    """Utility class for message validation"""
+    """
+    Утилита для валидации сообщений
+    
+    Предоставляет статические методы для проверки корректности
+    пользовательских ID, ID комнат и типов сообщений
+    """
 
     @staticmethod
     def validate_user_id(user_id: str) -> bool:
-        """Validate user ID format"""
+        """
+        Проверяет корректность ID пользователя
+        
+        Args:
+            user_id (str): Идентификатор пользователя
+            
+        Returns:
+            bool: True если ID валиден
+        """
         if not user_id or not isinstance(user_id, str):
             return False
         return len(user_id.strip()) > 0 and len(user_id) <= 50
 
     @staticmethod
     def validate_room_id(room_id: str) -> bool:
-        """Validate room ID format"""
+        """
+        Проверяет корректность ID комнаты
+        
+        Args:
+            room_id (str): Идентификатор комнаты
+            
+        Returns:
+            bool: True если ID валиден
+        """
         if not room_id or not isinstance(room_id, str):
             return False
         return len(room_id.strip()) > 0 and len(room_id) <= 50
