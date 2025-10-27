@@ -188,10 +188,20 @@ class ConferenceManager {
     // Private methods
     async getMediaStream() {
         try {
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
+            // Пробуем получить и видео, и аудио
+            try {
+                this.localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+            } catch (videoError) {
+                console.warn('Не удалось получить доступ к камере, пытаемся получить только аудио:', videoError);
+                // Если не получилось получить видео, пробуем только аудио
+                this.localStream = await navigator.mediaDevices.getUserMedia({
+                    video: false,
+                    audio: true
+                });
+            }
 
             // Отображаем локальное видео
             this.addParticipantTile(this.userId, this.localStream, true);
@@ -437,17 +447,28 @@ class ConferenceManager {
         tile.className = 'participant-tile';
         tile.id = tileId;
 
-        const video = document.createElement('video');
-        video.autoplay = true;
-        video.playsInline = true;
-        video.muted = isLocal; // Мьютим локальное видео
-        video.srcObject = stream;
+        // Проверяем, есть ли видео треки
+        const hasVideo = stream && stream.getVideoTracks().length > 0;
+        
+        if (hasVideo) {
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = isLocal; // Мьютим локальное видео
+            video.srcObject = stream;
+            tile.appendChild(video);
+        } else {
+            // Создаем заглушку для участника без видео
+            const placeholder = document.createElement('div');
+            placeholder.className = 'video-placeholder';
+            placeholder.innerHTML = '<div class="placeholder-icon">👤</div>';
+            tile.appendChild(placeholder);
+        }
 
         const nameTag = document.createElement('div');
         nameTag.className = 'participant-name';
         nameTag.textContent = isLocal ? `${userId} (вы)` : userId;
 
-        tile.appendChild(video);
         tile.appendChild(nameTag);
         grid.appendChild(tile);
 
@@ -476,17 +497,22 @@ class ConferenceManager {
     toggleVideo() {
         if (this.localStream) {
             const videoTracks = this.localStream.getVideoTracks();
-            videoTracks.forEach(track => {
-                track.enabled = !track.enabled;
-            });
-            this.isVideoEnabled = !this.isVideoEnabled;
-            const videoBtn = document.getElementById('videoBtn');
-            if (this.isVideoEnabled) {
-                videoBtn.classList.add('active');
-                videoBtn.textContent = '📹';
+            if (videoTracks.length > 0) {
+                videoTracks.forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+                this.isVideoEnabled = !this.isVideoEnabled;
+                const videoBtn = document.getElementById('videoBtn');
+                if (this.isVideoEnabled) {
+                    videoBtn.classList.add('active');
+                    videoBtn.textContent = '📹';
+                } else {
+                    videoBtn.classList.remove('active');
+                    videoBtn.textContent = '🚫';
+                }
             } else {
-                videoBtn.classList.remove('active');
-                videoBtn.textContent = '🚫';
+                // Если нет видео треков, нельзя включить/выключить видео
+                alert('Видео недоступно (нет камеры)');
             }
         }
     }
@@ -547,15 +573,17 @@ class ConferenceManager {
             this.screenStream = null;
         }
 
-        // Возвращаем камеру
+        // Возвращаем камеру (если есть)
         if (this.localStream) {
             const videoTrack = this.localStream.getVideoTracks()[0];
-            this.peerConnections.forEach((pc, userId) => {
-                const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-                if (sender) {
-                    sender.replaceTrack(videoTrack);
-                }
-            });
+            if (videoTrack) {
+                this.peerConnections.forEach((pc, userId) => {
+                    const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                    if (sender) {
+                        sender.replaceTrack(videoTrack);
+                    }
+                });
+            }
         }
 
         this.isScreenSharing = false;
